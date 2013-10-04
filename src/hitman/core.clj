@@ -9,7 +9,7 @@
 (def parse-md
   (insta/parser
     "
-    <Blocks> = (Paragraph | Header | List | Ordered | Code | Rule | Text)+
+    <Blocks> = (Paragraph | Header | List | Ordered | Code | Rule)+
     Header = Line Headerline Blankline+
     <Headerline> = h1 | h2
     h1 = '='+
@@ -24,15 +24,16 @@
     Codeline = <Space Space Space Space> (Whitespace | Word)* EOL
     Rule = Ruleline Blankline+
     <Ruleline> = <'+'+ | '*'+ | '-'+>
-    Paragraph = Line+ Blankline+
-    Text = (LoosyBlankline | LoosyLine | eps)*
+    Paragraph = Line+ Blankline+ / LoosyLine 
+   
     <Blankline> = Whitespace* EOL
-    <LoosyBlankline> = Whitespace*
-    <LoosyLine> = Linepre Word (Whitespace Word)* Linepost
-    <Line> = Linepre Word (Whitespace Word)* Linepost EOL
+    <Line> = Linepre Sentence Linepost EOL
+    <LoosyLine> = Linepre Sentence Linepost
+    <Sentence> = Word (Whitespace Word)*
     <Linepre> = (Space (Space (Space)? )? )?
     <Linepost> = Space?
-    <Whitespace> = #'(\\ | \\t)+'
+    
+    <Whitespace> = #'(\\s|\\t)+'
     <Space> = #'\\s'
     <Word> = #'\\S+'
     <EOL> = <'\\n'>"))
@@ -61,10 +62,12 @@
               :List (html [:ul (for [li (drop 1 b)] [:li (apply str (map parse-span (drop 1 li)))])])
               :Ordered (html [:ol (for [li (drop 1 b)] [:li (apply str (map parse-span (drop 1 li)))])])
               :Header (html [(first (last b)) (apply str (map parse-span (take (- (count b) 2) (drop 1 b))))])
-              :Code (html [:pre [:code (apply str (interpose "<br />" (for [line (drop 1 b)] (apply str (drop 1 line)))))]])
+              :Code (html [:pre [:code (apply str (interpose "<br />" 
+                                                             (for [line (drop 1 b)] (apply str (drop 1 line)))))]])
               :Rule (html [:hr])
               :Paragraph (html [:p (apply str (map parse-span (drop 1 b)))])
-              :Text (apply str (map parse-span (drop 1 b)))))))
+              :Container (html [:div (apply str (map parse-span (drop 1 b)))])
+             ))))
 
 (def markdown-to-html (comp output-html parse-md))
 
