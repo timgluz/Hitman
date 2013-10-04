@@ -8,7 +8,8 @@
 
 (def parse-md
   (insta/parser
-    "<Blocks> = (Paragraph | Header | List | Ordered | Code | Rule)+
+    "
+    <Blocks> = (Paragraph | Header | List | Ordered | Code | Rule | Text)+
     Header = Line Headerline Blankline+
     <Headerline> = h1 | h2
     h1 = '='+
@@ -24,12 +25,15 @@
     Rule = Ruleline Blankline+
     <Ruleline> = <'+'+ | '*'+ | '-'+>
     Paragraph = Line+ Blankline+
+    Text = (LoosyBlankline | LoosyLine | eps)*
     <Blankline> = Whitespace* EOL
+    <LoosyBlankline> = Whitespace*
+    <LoosyLine> = Linepre Word (Whitespace Word)* Linepost
     <Line> = Linepre Word (Whitespace Word)* Linepost EOL
     <Linepre> = (Space (Space (Space)? )? )?
     <Linepost> = Space?
     <Whitespace> = #'(\\ | \\t)+'
-    <Space> = ' '
+    <Space> = #'\\s'
     <Word> = #'\\S+'
     <EOL> = <'\\n'>"))
 
@@ -40,7 +44,8 @@
    [#"\*\*(\S+)\*\*"       (fn [s] (html [:strong s]))]
    [#"__(\S+)__"           (fn [s] (html [:strong s]))]
    [#"\*(\S+)\*"           (fn [s] (html [:em s]))]
-   [#"_(\S+)_"             (fn [s] (html [:em s]))]])
+   [#"_(\S+)_"             (fn [s] (html [:em s]))]
+   ])
 
 (defn- parse-span [s]
   (let [res (first (filter (complement nil?)
@@ -58,7 +63,8 @@
               :Header (html [(first (last b)) (apply str (map parse-span (take (- (count b) 2) (drop 1 b))))])
               :Code (html [:pre [:code (apply str (interpose "<br />" (for [line (drop 1 b)] (apply str (drop 1 line)))))]])
               :Rule (html [:hr])
-              :Paragraph (html [:p (apply str (map parse-span (drop 1 b)))])))))
+              :Paragraph (html [:p (apply str (map parse-span (drop 1 b)))])
+              :Text (apply str (map parse-span (drop 1 b)))))))
 
 (def markdown-to-html (comp output-html parse-md))
 
